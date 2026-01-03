@@ -56,101 +56,263 @@ AI Client (Claude, Cursor, etc.)
 
 ## Key Features
 
-### Security & Governance
-
-| Feature | Description |
-|---------|-------------|
-| **Role-Based Access Control** | Define which tools each agent can access using allow/deny lists with wildcard patterns |
-| **PII Detection** | Automatically detect and block/redact SSN, credit cards, emails, phone numbers, IP addresses |
-| **Rate Limiting** | Redis-backed sliding window rate limiting per minute/hour with configurable quotas |
-| **Content Filtering** | Block oversized documents, structured data dumps, and large code blocks |
-| **Audit Logging** | Complete audit trail of every request/response with guardrail decisions |
-
-### Multi-Tenancy & Scale
-
-| Feature | Description |
-|---------|-------------|
-| **Organisation Isolation** | Complete data isolation between customer organisations |
-| **Workspace Environments** | Separate policies for production, staging, and development |
-| **Hierarchical Policies** | Organisation → Workspace → Agent policy inheritance with overrides |
-| **Async Architecture** | Built on asyncio for high concurrency with connection pooling |
-
-### Enterprise Ready
-
-| Feature | Description |
-|---------|-------------|
-| **Infrastructure as Code** | Complete Terraform modules for AWS deployment |
-| **Auto-Scaling** | AWS App Runner with 1-5 instance auto-scaling |
-| **Serverless Database** | Aurora Serverless v2 with scale-to-zero for cost efficiency |
-| **Health Monitoring** | Health endpoints, CloudWatch integration, budget alerts |
-
----
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────────────────────────────┐
-│                              CERBERUS ARCHITECTURE                               │
-├──────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                  │
-│  ┌────────────────────────────────────────────────────────────────────────────┐  │
-│  │                         GOVERNANCE PLANE (Proxy)                           │  │
-│  │                                                                            │  │
-│  │   Request ──► Key Validation ──► Guardrail Pipeline ──► Forward to MCP    │  │
-│  │                                        │                                   │  │
-│  │                                        ▼                                   │  │
-│  │                              ┌─────────────────┐                           │  │
-│  │                              │   Guardrails    │                           │  │
-│  │                              │  • RBAC         │                           │  │
-│  │                              │  • PII          │                           │  │
-│  │                              │  • Rate Limit   │                           │  │
-│  │                              │  • Content      │                           │  │
-│  │                              └─────────────────┘                           │  │
-│  │                                        │                                   │  │
-│  │   Response ◄─ Guardrail Pipeline ◄────┘                                    │  │
-│  │                                                                            │  │
-│  └────────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                  │
-│  ┌────────────────────────────────────────────────────────────────────────────┐  │
-│  │                         CONTROL PLANE (Admin APIs)                         │  │
-│  │                                                                            │  │
-│  │   • Organisations           • Agent Access Keys        • Audit Logs        │  │
-│  │   • MCP Server Workspaces   • Policies & Guardrails    • Analytics         │  │
-│  │   • Users & Roles           • JWT Authentication                           │  │
-│  │                                                                            │  │
-│  └────────────────────────────────────────────────────────────────────────────┘  │
-│                                                                                  │
-│  ┌─────────────────────────────┐    ┌─────────────────────────────┐             │
-│  │    PostgreSQL (Aurora)      │    │    Redis (Valkey/Cache)     │             │
-│  │    • Multi-tenant data      │    │    • Rate limit counters    │             │
-│  │    • Audit logs             │    │    • Policy cache           │             │
-│  │    • Async with asyncpg     │    │    • Session storage        │             │
-│  └─────────────────────────────┘    └─────────────────────────────┘             │
-│                                                                                  │
-└──────────────────────────────────────────────────────────────────────────────────┘
-```
+| Category | Features |
+|----------|----------|
+| **Security** | RBAC with wildcard patterns, PII detection (SSN, credit cards, emails, phones), content filtering |
+| **Rate Limiting** | Redis-backed sliding window limits per minute/hour |
+| **Multi-Tenancy** | Organisation isolation, workspace environments, hierarchical policies |
+| **Audit** | Complete request/response logging with guardrail decisions |
+| **Infrastructure** | Terraform IaC, AWS App Runner auto-scaling, Aurora Serverless v2 |
 
 ---
 
 ## Tech Stack
 
-### Backend
-- **Framework:** FastAPI 0.109 with Pydantic v2 for validation
-- **Database:** PostgreSQL 15 with SQLAlchemy 2.0 async ORM
-- **Cache:** Redis/Valkey for rate limiting and caching
-- **Migrations:** Alembic with PostgreSQL advisory locks for safe cluster deploys
+| Layer | Technologies |
+|-------|--------------|
+| **Backend** | FastAPI 0.109, Pydantic v2, SQLAlchemy 2.0 async, Alembic |
+| **Database** | PostgreSQL 15 (Aurora Serverless v2), Redis/Valkey |
+| **Infrastructure** | Terraform, AWS App Runner, ECR, ElastiCache |
+| **Quality** | pytest, Black, Ruff, mypy (strict) |
 
-### Infrastructure
-- **Compute:** AWS App Runner (auto-scaling containers)
-- **Database:** Aurora Serverless v2 (scale-to-zero capability)
-- **Cache:** ElastiCache Valkey
-- **IaC:** Terraform with modular architecture
-- **Containers:** Multi-stage Docker builds
+---
 
-### Development
-- **Testing:** pytest with pytest-asyncio, integration test suite
-- **Quality:** Black, Ruff, mypy with strict configuration
-- **CI/CD:** GitHub Actions ready
+## Architecture
+
+### High-Level System Design
+
+```
+                                    ┌─────────────────────────────────────┐
+                                    │         AI CLIENTS                  │
+                                    │  Claude Desktop • Cursor • VS Code  │
+                                    └─────────────────┬───────────────────┘
+                                                      │
+                                                      │ MCP Requests
+                                                      │ Authorization: Bearer <agent-key>
+                                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    CERBERUS GATEWAY                                     │
+│                                                                                         │
+│  ┌────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                              GOVERNANCE PLANE                                      │ │
+│  │                                                                                    │ │
+│  │   ┌──────────────┐    ┌──────────────────────────────────────────-┐    ┌─────────┐ │ │
+│  │   │    ACCESS    │    │           GUARDRAIL PIPELINE              │    │ FORWARD │ │ │
+│  │   │     KEY      │───►│                                           │───►│   TO    │ │ │
+│  │   │  VALIDATION  │    │  ┌──────┐ ┌────────┐ ┌─────┐ ┌─────────┐  │    │UPSTREAM │ │ │
+│  │   │              │    │  │ RBAC │►│  RATE  │►│ PII │►│ CONTENT │  │    │         │ │ │
+│  │   │ • SHA-256    │    │  │      │ │ LIMIT  │ │     │ │ FILTER  │  │    │ • Retry │ │ │
+│  │   │   lookup     │    │  └──────┘ └────────┘ └─────┘ └─────────┘  │    │ • Pool  │ │ │
+│  │   │ • Derive     │    │       │        │        │         │       │    │         │ │ │
+│  │   │   context    │    │       ▼        ▼        ▼         ▼       │    └─────────┘ │ │
+│  │   └──────────────┘    │    [BLOCK] [THROTTLE] [REDACT] [ALLOW]    │                │ │
+│  │                        └──────────────────────────────────────────┘                │ │
+│  │                                         │                                          │ │
+│  │   ┌─────────────────────────────────────┼────────────────────────────────────────-┐│ │
+│  │   │                           RESPONSE EVALUATION                                 ││ │
+│  │   │                     (Same pipeline for MCP responses)                         ││ │
+│  │   └───────────────────────────────────────────────────────────────────────────────┘│ │
+│  └───────────────────────────────────────────────────────────────────────────────────-┘ │
+│                                                                                         │
+│  ┌────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                               CONTROL PLANE                                        │ │
+│  │                                                                                    │ │
+│  │   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐  │ │
+│  │   │Organisation │ │  Workspace  │ │Agent Access │ │   Policy    │ │    Audit    │  │ │
+│  │   │ Management  │ │ Management  │ │ Key Mgmt    │ │ Management  │ │   Logging   │  │ │
+│  │   │             │ │             │ │             │ │             │ │             │  │ │
+│  │   │ • Multi-    │ │ • prod/stg/ │ │ • Generate  │ │ • CRUD      │ │ • Request/  │  │ │
+│  │   │   tenant    │ │   dev envs  │ │ • Rotate    │ │ • Hierarchy │ │   Response  │  │ │
+│  │   │ • Isolation │ │ • MCP URLs  │ │ • Revoke    │ │ • Merge     │ │ • Decisions │  │ │
+│  │   └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘  │ │
+│  └────────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                         │
+│  ┌────────────────────────────────────────────────────────────────────────────────────┐ │
+│  │                                 DATA LAYER                                         │ │
+│  │                                                                                    │ │
+│  │   ┌─────────────────────────────────┐    ┌─────────────────────────────────┐       │ │
+│  │   │      PostgreSQL (Aurora)        │    │        Redis (Valkey)           │       │ │
+│  │   │                                 │    │                                 │       │ │
+│  │   │  • Organisations & Workspaces   │    │  • Rate limit counters          │       │ │
+│  │   │  • Users & Agent Access Keys    │    │  • Policy cache                 │       │ │
+│  │   │  • Policies & Guardrails        │    │  • Session storage              │       │ │
+│  │   │  • Audit Logs                   │    │  • Sliding window state         │       │ │
+│  │   │                                 │    │                                 │       │ │
+│  │   │  SQLAlchemy 2.0 + asyncpg       │    │  aioredis connection pool       │       │ │
+│  │   └─────────────────────────────────┘    └─────────────────────────────────┘       │ │
+│  └────────────────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+                                                      │
+                                                      │ Governed Request
+                                                      ▼
+                                    ┌─────────────────────────────────────┐
+                                    │         MCP SERVERS                 │
+                                    │   Database • Filesystem • APIs      │
+                                    └─────────────────────────────────────┘
+```
+
+### Request Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────-┐
+│                                    REQUEST LIFECYCLE                                     │
+├─────────────────────────────────────────────────────────────────────────────────────────-┤
+│                                                                                          │
+│  1. KEY VALIDATION              2. REQUEST GUARDRAILS         3. UPSTREAM FORWARD        │
+│  ─────────────────              ────────────────────          ──────────────────         │
+│  │                              │                              │                         │
+│  │  Authorization: Bearer xxx   │  Load effective policy       │  Forward to MCP server  │
+│  │         │                    │  (org → workspace → agent)   │         │               │
+│  │         ▼                    │         │                    │         ▼               │
+│  │  SHA-256 hash lookup         │         ▼                    │  Connection pooling     │
+│  │         │                    │  Execute pipeline:           │  Retry with backoff     │
+│  │         ▼                    │  RBAC → Rate → PII → Content │  Timeout handling       │
+│  │  Derive context:             │         │                    │                         │
+│  │  • organisation_id           │         ▼                    │                         │
+│  │  • workspace_id              │  BLOCK ──► 403 Response      │                         │
+│  │  • mcp_server_url            │  ALLOW ──► Continue ─────────┼──►                      │
+│  │                              │  MODIFY ─► Transform & Go    │                         │
+│  │                              │                              │                         │
+│  └──────────────────────────────┴──────────────────────────────┴─────────────────────────│
+│                                                                                          │
+│  4. RESPONSE GUARDRAILS         5. AUDIT & RETURN                                        │
+│  ──────────────────────         ─────────────────                                        │
+│  │                              │                                                        │
+│  │  Same pipeline on response   │  Async audit log write                                 │
+│  │         │                    │         │                                              │
+│  │         ▼                    │         ▼                                              │
+│  │  PII Detection → Redaction   │  Return to client with:                                │
+│  │  Secrets → Block             │  • X-Request-ID                                        │
+│  │  Content → Filter            │  • X-Decision-ID                                       │
+│  │                              │  • Guardrail metadata                                  │
+│  │                              │                                                        │
+│  └──────────────────────────────┴────────────────────────────────────────────────────────│
+│                                                                                          │
+│  ┌────────────────────────────────────────────────────────────────────────────────────-┐ │
+│  │                              PERFORMANCE TARGETS                                    │ │
+│  │   Key Validation: <5ms  │  Policy Load: <5ms  │  Guardrails: <20ms  │  Total: <30ms │ │
+│  └────────────────────────────────────────────────────────────────────────────────────-┘ │
+└────────────────────────────────────────────────────────────────────────────────────────-─┘
+```
+
+### Multi-Tenant Data Model
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────-┐
+│                                    DATA MODEL                                            │
+├─────────────────────────────────────────────────────────────────────────────────────────-┤
+│                                                                                          │
+│                              ┌─────────────────────┐                                     │
+│                              │    ORGANISATION     │                                     │
+│                              │    (Tenant Root)    │                                     │
+│                              ├─────────────────────┤                                     │
+│                              │ • name, slug        │                                     │
+│                              │ • subscription_tier │                                     │
+│                              │ • settings (JSON)   │                                     │
+│                              │ • is_active         │                                     │
+│                              └──────────┬──────────┘                                     │
+│                                         │                                                │
+│           ┌─────────────────────────────┼─────────────────────────────┐                  │
+│           │                             │                             │                  │
+│           ▼                             ▼                             ▼                  │
+│  ┌─────────────────────┐    ┌─────────────────────┐    ┌─────────────────────┐           │ 
+│  │   MCP WORKSPACE     │    │        USER         │    │       POLICY        │           │
+│  │   (Environment)     │    │   (Dashboard Only)  │    │   (Org-Level)       │           │
+│  ├─────────────────────┤    ├─────────────────────┤    ├─────────────────────┤           │
+│  │ • name, slug        │    │ • email             │    │ • guardrail_id      │           │
+│  │ • environment_type  │    │ • password_hash     │    │ • action            │           │
+│  │ • mcp_server_url    │    │ • role (admin/view) │    │ • config (JSON)     │           │
+│  │ • settings (JSON)   │    │ • is_active         │    │ • priority          │           │
+│  └──────────┬──────────┘    └─────────────────────┘    └─────────────────────┘           │
+│             │                                                                            │
+│             ├──────────────────────────────────┐                                         │
+│             │                                  │                                         │
+│             ▼                                  ▼                                         │
+│  ┌─────────────────────┐            ┌─────────────────────┐                              │
+│  │    AGENT ACCESS     │            │       POLICY        │                              │
+│  │   (MCP Auth Key)    │            │  (Workspace-Level)  │                              │
+│  ├─────────────────────┤            ├─────────────────────┤                              │
+│  │ • name, description │            │ (Overrides org)     │                              │
+│  │ • key_hash (SHA256) │            └──────────┬──────────┘                              │
+│  │ • key_prefix        │                       │                                         │
+│  │ • is_active         │                       ▼                                         │
+│  │ • expires_at        │            ┌─────────────────────┐                              │
+│  │ • last_used_at      │            │       POLICY        │                              │
+│  │ • usage_count       │            │   (Agent-Level)     │                              │
+│  └──────────┬──────────┘            ├─────────────────────┤                              │
+│             │                       │ (Overrides both)    │                              │
+│             │                       └─────────────────────┘                              │
+│             │                                                                            │
+│             │              POLICY RESOLUTION: Org → Workspace → Agent                    │
+│             │              (Higher specificity wins)                                     │
+│             │                                                                            │
+│             ▼                                                                            │
+│  ┌─────────────────────────────────────────────────────────────────────────┐             │
+│  │                              AUDIT LOG                                  │             │
+│  ├─────────────────────────────────────────────────────────────────────────┤             │
+│  │ • request_id, decision_id    • action (allow/block/modify)              │             │
+│  │ • organisation_id            • guardrail_events (JSON)                  │             │
+│  │ • workspace_id               • processing_time_ms                       │             │
+│  │ • agent_access_id            • timestamp                                │             │
+│  └─────────────────────────────────────────────────────────────────────────┘             │
+│                                                                                          │
+└─────────────────────────────────────────────────────────────────────────────────────────-┘
+```
+
+### AWS Production Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                              AWS PRODUCTION DEPLOYMENT                                  │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                         │
+│   Internet                                                                              │
+│       │                                                                                 │
+│       ▼                                                                                 │
+│   ┌─────────────────────────────────────────────────────────────────────────┐           │
+│   │                         AWS APP RUNNER                                  │           │
+│   │                                                                         │           │
+│   │   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                     │           │
+│   │   │  Instance   │  │  Instance   │  │  Instance   │   Auto-scaling      │           │
+│   │   │   (256MB)   │  │   (256MB)   │  │   (256MB)   │   1-5 instances     │           │
+│   │   └──────┬──────┘  └──────┬──────┘  └──────┬──────┘                     │           │
+│   │          └─────────────────┼─────────────────┘                          │           │
+│   │                            │                                            │           │
+│   │   Built-in: HTTPS • Load Balancing • Health Checks • Zero-downtime      │           │
+│   └────────────────────────────┼────────────────────────────────────────────┘           │
+│                                │                                                        │
+│                    VPC Connector (Private Subnets)                                      │
+│   ┌────────────────────────────┼────────────────────────────────────────────┐           │
+│   │                            │                          DEFAULT VPC       │           │
+│   │           ┌────────────────┴────────────────┐                           │           │
+│   │           │                                 │                           │           │
+│   │           ▼                                 ▼                           │           │
+│   │   ┌─────────────────────┐       ┌─────────────────────┐                 │           │
+│   │   │  Aurora Serverless  │       │  ElastiCache Valkey │                 │           │
+│   │   │   v2 PostgreSQL     │       │     (Redis)         │                 │           │
+│   │   │                     │       │                     │                 │           │
+│   │   │  • 0-8 ACU scaling  │       │  • t4g.micro/small  │                 │           │
+│   │   │  • Scale-to-zero    │       │  • Rate limiting    │                 │           │
+│   │   │  • Auto-pause       │       │  • Policy cache     │                 │           │
+│   │   │  • 7-day backups    │       │                     │                 │           │
+│   │   └─────────────────────┘       └─────────────────────┘                 │           │
+│   └─────────────────────────────────────────────────────────────────────────┘           │
+│                                                                                         │
+│   ┌─────────────────────────────────────────────────────────────────────────-┐          │
+│   │                          SUPPORTING SERVICES                             │          │
+│   │                                                                          │          │
+│   │   ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐             │          │
+│   │   │    ECR    │  │ S3 Bucket │  │ DynamoDB  │  │  Budget   │             │          │
+│   │   │ (Images)  │  │ (TF State)│  │ (TF Lock) │  │ (Alerts)  │             │          │
+│   │   └───────────┘  └───────────┘  └───────────┘  └───────────┘             │          │
+│   │                                                                          │          │
+│   │   Terraform IaC  •  Multi-stage Docker  •  GitHub Actions Ready          │          │
+│   └─────────────────────────────────────────────────────────────────────────-┘          │
+│                                                                                         │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+> **Deep Dive:** See [Architecture Documentation](cerberus/docs/architecture.md) for detailed component interactions and request flows.
 
 ---
 
@@ -162,227 +324,74 @@ cerberus/
 │   ├── control_plane/          # Admin REST APIs
 │   │   ├── api/v1/             # Versioned endpoints
 │   │   └── services/           # Business logic
-│   │
 │   ├── governance_plane/       # Proxy & policy engine
 │   │   ├── proxy/              # MCP proxy service
 │   │   ├── engine/             # Decision engine
-│   │   ├── guardrails/         # Guardrail implementations
-│   │   │   ├── rbac/           # Role-based access control
-│   │   │   ├── pii/            # PII detection (SSN, CC, etc.)
-│   │   │   ├── rate_limit/     # Redis-backed rate limiting
-│   │   │   └── content/        # Content size filtering
-│   │   └── events/             # Audit event system
-│   │
+│   │   └── guardrails/         # RBAC, PII, rate limit, content
 │   ├── models/                 # SQLAlchemy models
 │   ├── schemas/                # Pydantic schemas
-│   ├── db/                     # Database layer
-│   │   └── repositories/       # Repository pattern
-│   ├── cache/                  # Redis client & caching
-│   ├── config/                 # Settings & constants
+│   ├── db/repositories/        # Repository pattern
 │   └── core/                   # Security, exceptions, utils
-│
-├── infra/                      # Terraform infrastructure
-│   ├── modules/
-│   │   ├── aurora/             # Aurora Serverless v2
-│   │   ├── valkey/             # ElastiCache
-│   │   ├── apprunner/          # App Runner service
-│   │   └── ecr/                # Container registry
-│   └── environments/
-│       ├── stage/
-│       └── prod/
-│
-├── tests/
-│   ├── unit/
-│   └── integration/
-│
+├── infra/                      # Terraform modules
+│   ├── modules/                # aurora, valkey, apprunner, ecr
+│   └── environments/           # stage, prod
+├── tests/                      # Unit & integration tests
 ├── docs/                       # Comprehensive documentation
 └── docker/                     # Containerization
 ```
 
 ---
 
-## Guardrails
-
-### Available Guardrail Types
-
-| Category | Type | Direction | Action | Description |
-|----------|------|-----------|--------|-------------|
-| **RBAC** | `rbac` | Request | Block | Tool access control with allow/deny lists |
-| **PII** | `pii_ssn` | Both | Block | Social Security Numbers (validated format) |
-| **PII** | `pii_credit_card` | Both | Block | Credit/debit cards (Luhn algorithm validated) |
-| **PII** | `pii_email` | Both | Redact | Email addresses |
-| **PII** | `pii_phone` | Both | Redact | Phone numbers |
-| **PII** | `pii_ip_address` | Both | Redact | IPv4 addresses |
-| **Rate Limit** | `rate_limit_per_minute` | Request | Throttle | Requests per minute quota |
-| **Rate Limit** | `rate_limit_per_hour` | Request | Throttle | Requests per hour quota |
-| **Content** | `content_large_documents` | Both | Block | Document size limits |
-| **Content** | `content_structured_data` | Both | Block | Table/CSV row limits |
-| **Content** | `content_source_code` | Both | Block | Code block size limits |
-
-### Guardrail Pipeline Flow
-
-```
-Request/Response
-      │
-      ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    GUARDRAIL PIPELINE                       │
-│                                                             │
-│   ┌──────┐   ┌────────────┐   ┌─────┐   ┌─────────┐        │
-│   │ RBAC │──►│ Rate Limit │──►│ PII │──►│ Content │──► ... │
-│   └──────┘   └────────────┘   └─────┘   └─────────┘        │
-│       │            │             │            │             │
-│       ▼            ▼             ▼            ▼             │
-│    [BLOCK]     [THROTTLE]    [MODIFY]     [ALLOW]          │
-│                                                             │
-│   Pipeline short-circuits on BLOCK                          │
-│   MODIFY actions transform content and continue             │
-│   ALLOW passes through to next guardrail                    │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-      │
-      ▼
-Forward/Return (if allowed)
-```
-
----
-
 ## Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- Docker & Docker Compose
-- PostgreSQL 15 (or use Docker)
-- Redis 7 (or use Docker)
-
-### Local Development
 
 ```bash
 # Clone and setup
 cd cerberus
-python -m venv venv
-source venv/bin/activate
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
 
 # Start dependencies
 docker compose up -d postgres redis
 
-# Configure environment
+# Configure and run
 cp env.example .env
-# Edit .env with your settings
-
-# Run migrations
 alembic upgrade head
-
-# Seed database (optional)
-python scripts/seed_db.py
-
-# Start server
 uvicorn app.main:app --reload --port 8000
 ```
 
-### Using Docker
-
-```bash
-cd cerberus/docker
-docker compose up -d
-
-# Application available at http://localhost:8000
-# API docs at http://localhost:8000/docs
-```
+> **Full Guide:** See [Getting Started](cerberus/docs/getting-started.md) for detailed setup instructions.
 
 ---
 
-## API Overview
+## Guardrails
 
-### Control Plane (Admin)
+| Category | Type | Action | Description |
+|----------|------|--------|-------------|
+| **RBAC** | `rbac` | Block | Tool access control with allow/deny lists |
+| **PII** | `pii_ssn`, `pii_credit_card` | Block | SSN and credit cards (Luhn validated) |
+| **PII** | `pii_email`, `pii_phone`, `pii_ip_address` | Redact | Contact info redaction |
+| **Rate Limit** | `rate_limit_per_minute/hour` | Throttle | Configurable quotas |
+| **Content** | `content_large_documents`, `content_source_code` | Block | Size limits |
 
-```
-Authentication:
-  POST /api/v1/auth/login                    # Get JWT token
-  POST /api/v1/auth/refresh                  # Refresh token
-
-Organisations:
-  GET  /api/v1/organisations                 # List organisations
-  POST /api/v1/organisations                 # Create organisation
-  GET  /api/v1/organisations/{id}            # Get organisation
-
-MCP Server Workspaces:
-  GET  /api/v1/organisations/{id}/mcp-server-workspaces
-  POST /api/v1/organisations/{id}/mcp-server-workspaces
-
-Agent Access Keys:
-  GET  /api/v1/mcp-server-workspaces/{id}/agent-accesses
-  POST /api/v1/mcp-server-workspaces/{id}/agent-accesses
-  POST /api/v1/agent-accesses/{id}/rotate    # Rotate key
-
-Policies:
-  GET  /api/v1/policies/mcp-server-workspaces/{id}/effective-policies
-  POST /api/v1/policies                      # Create policy
-
-Audit & Analytics:
-  GET  /api/v1/organisations/{id}/audit-logs
-  GET  /api/v1/organisations/{id}/analytics
-```
-
-### Governance Plane (Proxy)
-
-```
-MCP Proxy:
-  POST /governance-plane/api/v1/proxy/mcp    # Proxy MCP request
-
-  Headers:
-    Authorization: Bearer <agent-access-key>
-```
+> **Configuration:** See [Guardrails Documentation](cerberus/docs/guardrails.md) for configuration details.
 
 ---
 
 ## Deployment
 
-### AWS Architecture
-
 ```
-Internet
-    │
-    ▼
 AWS App Runner (auto-scaling 1-5 instances)
     │ VPC Connector
     ├──► Aurora Serverless v2 PostgreSQL
     └──► ElastiCache Valkey (Redis)
-
-Supporting:
-    • ECR (container images)
-    • S3 (Terraform state)
-    • CloudWatch (logs)
-    • Budget Alerts
 ```
 
-### Deploy with Terraform
-
-```bash
-# 1. Bootstrap state backend (one-time)
-cd infra/bootstrap
-terraform init && terraform apply
-
-# 2. Configure environment
-cd ../environments/stage
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars
-
-# 3. Deploy
-terraform init
-terraform apply
-```
-
-### Cost Estimates
-
-| Environment | Idle | Active |
-|-------------|------|--------|
+| Environment | Idle Cost | Active Cost |
+|-------------|-----------|-------------|
 | **Staging** | ~$15/month | ~$20/month |
 | **Production** | ~$35/month | ~$70/month |
 
-*Aurora Serverless v2 scales to zero, App Runner scales 1-5 instances*
+> **Full Guide:** See [Deployment Documentation](cerberus/docs/deployment.md) for Terraform deployment instructions.
 
 ---
 
@@ -390,104 +399,52 @@ terraform apply
 
 | Document | Description |
 |----------|-------------|
-| [Architecture](cerberus/docs/architecture.md) | System design and request flows |
+| [Architecture](cerberus/docs/architecture.md) | System design, data flow, component interactions |
 | [Getting Started](cerberus/docs/getting-started.md) | Local development setup |
-| [API Reference](cerberus/docs/api-reference.md) | Complete API documentation |
-| [Authentication](cerberus/docs/authentication.md) | JWT and API key flows |
-| [Guardrails](cerberus/docs/guardrails.md) | Guardrail configuration |
-| [Deployment](cerberus/docs/deployment.md) | Production deployment guide |
-| [Migrations](cerberus/docs/migrations.md) | Database migration guide |
+| [API Reference](cerberus/docs/api-reference.md) | Complete endpoint documentation |
+| [Authentication](cerberus/docs/authentication.md) | JWT and API key authentication flows |
+| [Guardrails](cerberus/docs/guardrails.md) | Guardrail types and configuration |
+| [Deployment](cerberus/docs/deployment.md) | AWS deployment with Terraform |
+| [Migrations](cerberus/docs/migrations.md) | Database migration workflows |
 
 ---
 
 ## Technical Highlights
 
-### Async-First Architecture
-- Built entirely on `asyncio` for high concurrency
-- `asyncpg` for non-blocking database operations
-- `httpx` async HTTP client for MCP proxy
-- Connection pooling for both database and Redis
-
-### Type Safety
-- Strict `mypy` configuration
-- Pydantic v2 for runtime validation
-- SQLAlchemy 2.0 with full type hints
-- No `Any` types in business logic
-
-### Security
-- Passwords hashed with bcrypt
-- API keys stored as SHA-256 hashes
-- JWT with configurable expiration
-- PII detection with Luhn validation for credit cards
-
-### Database Design
-- Soft deletes with `deleted_at` timestamp
-- Unique constraints with soft-delete awareness
-- Advisory locks for safe migrations in clusters
-- Composite indexes for common query patterns
-
-### Extensible Guardrails
-```python
-# Adding a new guardrail is simple:
-class CustomGuardrail(BaseGuardrail):
-    guardrail_type = "custom_check"
-
-    async def evaluate(
-        self,
-        context: GuardrailContext
-    ) -> GuardrailResult:
-        # Your logic here
-        return GuardrailResult(action=Action.ALLOW)
-```
+| Aspect | Implementation |
+|--------|----------------|
+| **Async Architecture** | Built on `asyncio` with `asyncpg` and `httpx` for high concurrency |
+| **Type Safety** | Strict `mypy`, Pydantic v2, SQLAlchemy 2.0 type hints |
+| **Security** | Bcrypt passwords, SHA-256 API key hashes, Luhn-validated PII detection |
+| **Database Design** | Soft deletes, advisory locks for migrations, composite indexes |
+| **Extensibility** | Plugin-based guardrail system with simple base class |
 
 ---
 
 ## Development
 
-### Running Tests
-
 ```bash
-# Unit tests
+# Tests
 pytest tests/unit -v
-
-# Integration tests (requires database)
 pytest tests/integration -v
 
-# With coverage
-pytest --cov=app tests/
+# Quality
+black app tests && ruff check app tests && mypy app
 ```
 
-### Code Quality
+---
 
-```bash
-# Format
-black app tests
+## Skills Demonstrated
 
-# Lint
-ruff check app tests
-
-# Type check
-mypy app
-```
+- **Backend:** Async Python, FastAPI, SQLAlchemy 2.0, Pydantic
+- **Architecture:** Multi-tenant SaaS, Repository pattern, Event-driven audit
+- **Security:** RBAC, PII detection, Rate limiting, JWT/API key auth
+- **Infrastructure:** Terraform, AWS (App Runner, Aurora, ElastiCache)
+- **Database:** PostgreSQL, Redis, Migration strategies
+- **Quality:** Type safety, Testing, Documentation
 
 ---
 
 ## License
 
 This project is for portfolio demonstration purposes.
-
----
-
-## Author
-
-Built as a demonstration of enterprise software architecture, security best practices, and production-grade Python development.
-
-**Skills Demonstrated:**
-- Async Python with FastAPI
-- Multi-tenant SaaS architecture
-- Security (RBAC, PII detection, rate limiting)
-- Infrastructure as Code with Terraform
-- Database design with PostgreSQL
-- Caching strategies with Redis
-- Test-driven development
-- Clean code and documentation
