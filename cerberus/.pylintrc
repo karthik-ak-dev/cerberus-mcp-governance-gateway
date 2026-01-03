@@ -1,0 +1,24 @@
+[MAIN]
+source-roots=.
+ignore=alembic,.venv,tests
+ignore-patterns=test_.*
+
+[MESSAGES CONTROL]
+disable=
+    too-many-arguments,
+    too-many-positional-arguments,
+    too-many-locals,
+    too-many-branches,
+    too-many-return-statements,
+    too-few-public-methods,
+    duplicate-code,
+    invalid-name,
+
+[DESIGN]
+max-args=10
+max-locals=20
+max-branches=15
+max-returns=10
+
+[FORMAT]
+max-line-length=100

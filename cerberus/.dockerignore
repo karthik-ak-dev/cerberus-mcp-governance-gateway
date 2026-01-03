@@ -1,0 +1,59 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv
+ENV
+env
+.eggs
+*.egg-info
+*.egg
+.mypy_cache
+.pytest_cache
+.ruff_cache
+.coverage
+htmlcov
+.tox
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# Docker
+docker/docker-compose*.yml
+Dockerfile*
+.docker
+
+# Documentation
+*.md
+docs/
+
+# Tests (not needed in prod image)
+tests/
+*_test.py
+test_*.py
+conftest.py
+
+# Env files (mounted at runtime, not baked in)
+env/
+.env*
+*.env
+
+# Misc
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# Infrastructure (not needed in container)
+infra/

@@ -1,0 +1,18 @@
+# Staging Environment Variables
+# Copy to terraform.tfvars and fill in values
+
+aws_region = "us-east-1"
+
+# Database credentials
+db_username = "cerberus_admin"
+db_password = "CHANGE_ME_SECURE_PASSWORD"
+
+# Application secret (generate with: openssl rand -hex 32)
+secret_key = "CHANGE_ME_GENERATE_WITH_OPENSSL"
+
+# Docker image tag
+image_tag = "latest"
+
+# CORS origins (JSON array string)
+cors_origins = "[\"*\"]"
+

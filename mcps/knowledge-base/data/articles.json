@@ -1,0 +1,240 @@
+{
+    "articles": [
+        {
+            "id": "1",
+            "title": "Getting Started with Python Async/Await",
+            "slug": "python-async-await",
+            "category": "python",
+            "tags": [
+                "python",
+                "async",
+                "concurrency",
+                "beginner"
+            ],
+            "content": "Async/await in Python allows you to write concurrent code that is more readable than traditional threading approaches.\n\n## Basic Syntax\n\n```python\nimport asyncio\n\nasync def fetch_data():\n    await asyncio.sleep(1)  # Simulate I/O\n    return {'data': 'example'}\n\nasync def main():\n    result = await fetch_data()\n    print(result)\n\nasyncio.run(main())\n```\n\n## Key Concepts\n\n1. **async def**: Defines a coroutine function\n2. **await**: Pauses execution until the awaited coroutine completes\n3. **asyncio.run()**: Entry point to run async code\n\n## When to Use\n\n- I/O-bound operations (network requests, file operations)\n- High concurrency requirements\n- Real-time applications",
+            "author": "Jane Developer",
+            "created_at": "2024-01-15T10:00:00Z",
+            "updated_at": "2024-01-20T14:30:00Z",
+            "views": 1523
+        },
+        {
+            "id": "2",
+            "title": "Building REST APIs with FastAPI",
+            "slug": "fastapi-rest-apis",
+            "category": "python",
+            "tags": [
+                "python",
+                "fastapi",
+                "api",
+                "rest",
+                "intermediate"
+            ],
+            "content": "FastAPI is a modern Python framework for building APIs with automatic OpenAPI documentation.\n\n## Quick Start\n\n```python\nfrom fastapi import FastAPI\nfrom pydantic import BaseModel\n\napp = FastAPI()\n\nclass Item(BaseModel):\n    name: str\n    price: float\n\n@app.get('/items/{item_id}')\nasync def get_item(item_id: int):\n    return {'item_id': item_id}\n\n@app.post('/items')\nasync def create_item(item: Item):\n    return item\n```\n\n## Features\n\n- Automatic request validation\n- OpenAPI/Swagger UI built-in\n- Async support out of the box\n- Type hints everywhere\n\n## Best Practices\n\n1. Use Pydantic models for request/response\n2. Organize routes with APIRouter\n3. Use dependency injection for shared logic",
+            "author": "John API",
+            "created_at": "2024-02-01T09:00:00Z",
+            "updated_at": "2024-02-15T11:00:00Z",
+            "views": 2341
+        },
+        {
+            "id": "3",
+            "title": "Introduction to MCP (Model Context Protocol)",
+            "slug": "intro-to-mcp",
+            "category": "ai",
+            "tags": [
+                "mcp",
+                "ai",
+                "llm",
+                "protocol",
+                "beginner"
+            ],
+            "content": "MCP (Model Context Protocol) is a standard for connecting AI models to external tools and data sources.\n\n## Core Concepts\n\n### Tools\nFunctions that the AI can call to perform actions:\n- Search databases\n- Execute code\n- Call external APIs\n\n### Resources\nData sources the AI can read:\n- Files and documents\n- Database records\n- Live data feeds\n\n### Prompts\nPre-defined templates for common tasks:\n- Code review prompts\n- Summarization templates\n- Q&A formats\n\n## Transport Options\n\n1. **STDIO**: Direct process communication\n2. **HTTP/SSE**: Network-based, supports gateways\n\n## Example Server\n\n```python\nfrom mcp.server import Server\n\nserver = Server('my-server')\n\n@server.tool()\nasync def search(query: str) -> str:\n    return f'Results for: {query}'\n```",
+            "author": "Alice MCP",
+            "created_at": "2024-03-01T08:00:00Z",
+            "updated_at": "2024-03-10T16:00:00Z",
+            "views": 892
+        },
+        {
+            "id": "4",
+            "title": "Database Design Patterns",
+            "slug": "database-design-patterns",
+            "category": "database",
+            "tags": [
+                "database",
+                "sql",
+                "design",
+                "intermediate"
+            ],
+            "content": "Good database design is crucial for application performance and maintainability.\n\n## Normalization\n\nOrganize data to reduce redundancy:\n\n- **1NF**: Atomic values, no repeating groups\n- **2NF**: No partial dependencies\n- **3NF**: No transitive dependencies\n\n## Common Patterns\n\n### Soft Deletes\n```sql\nALTER TABLE users ADD COLUMN deleted_at TIMESTAMP NULL;\n```\n\n### Audit Trails\n```sql\nCREATE TABLE audit_log (\n    id SERIAL PRIMARY KEY,\n    table_name VARCHAR(50),\n    record_id INT,\n    action VARCHAR(10),\n    old_values JSONB,\n    new_values JSONB,\n    changed_at TIMESTAMP DEFAULT NOW()\n);\n```\n\n### Multi-tenancy\n- Row-level: tenant_id column\n- Schema-level: separate schemas per tenant\n- Database-level: separate databases",
+            "author": "Bob Database",
+            "created_at": "2024-01-25T12:00:00Z",
+            "updated_at": "2024-02-05T10:00:00Z",
+            "views": 1876
+        },
+        {
+            "id": "5",
+            "title": "Security Best Practices for APIs",
+            "slug": "api-security-best-practices",
+            "category": "security",
+            "tags": [
+                "security",
+                "api",
+                "authentication",
+                "advanced"
+            ],
+            "content": "Securing your API is critical to protect user data and prevent attacks.\n\n## Authentication\n\n### API Keys\n- Simple but limited\n- Good for server-to-server\n- Store hashed, never plain text\n\n### JWT Tokens\n- Stateless authentication\n- Include expiration\n- Validate signature server-side\n\n### OAuth 2.0\n- Industry standard\n- Supports multiple grant types\n- Use for user-facing apps\n\n## Common Vulnerabilities\n\n1. **Injection**: Always parameterize queries\n2. **Broken Auth**: Use proven libraries\n3. **Data Exposure**: Minimize response data\n4. **Rate Limiting**: Prevent abuse\n\n## Headers to Set\n\n```\nStrict-Transport-Security: max-age=31536000\nX-Content-Type-Options: nosniff\nX-Frame-Options: DENY\nContent-Security-Policy: default-src 'self'\n```",
+            "author": "Carol Security",
+            "created_at": "2024-02-20T15:00:00Z",
+            "updated_at": "2024-03-01T09:00:00Z",
+            "views": 3102
+        },
+        {
+            "id": "pii-block-ssn",
+            "title": "Employee Tax Records (SSN Test)",
+            "slug": "employee-tax-records",
+            "category": "internal",
+            "tags": [
+                "hr",
+                "tax",
+                "pii-test",
+                "block"
+            ],
+            "content": "## Employee Tax Information\n\nThis article contains SSN data that should be BLOCKED.\n\n### Employee Records\n- **John Smith** (Employee ID: E001)\n  - SSN: 123-45-6789\n  - Department: Engineering\n\n- **Jane Doe** (Employee ID: E002)\n  - SSN: 987-65-4321\n  - Department: Marketing\n\n### Tax Filing Status\nAll employees must verify their SSN before tax season.",
+            "author": "HR Department",
+            "created_at": "2024-03-15T10:00:00Z",
+            "updated_at": "2024-03-15T10:00:00Z",
+            "views": 25
+        },
+        {
+            "id": "pii-block-cc",
+            "title": "Payment Processing Records (Credit Card Test)",
+            "slug": "payment-records",
+            "category": "internal",
+            "tags": [
+                "finance",
+                "payments",
+                "pii-test",
+                "block"
+            ],
+            "content": "## Payment Transaction Records\n\nThis article contains credit card data that should be BLOCKED.\n\n### Recent Transactions\n- Order #10001: Card 4532015112830366, Amount: $150.00\n- Order #10002: Card 5425233430109903, Amount: $89.99\n- Order #10003: Card 4916338506082832, Amount: $250.00\n\n### Payment Gateway Info\nAll card numbers are validated using Luhn algorithm.",
+            "author": "Finance Team",
+            "created_at": "2024-03-15T11:00:00Z",
+            "updated_at": "2024-03-15T11:00:00Z",
+            "views": 30
+        },
+        {
+            "id": "pii-redact-contact",
+            "title": "Customer Contact Directory (Email/Phone/IP Test)",
+            "slug": "customer-contact-directory",
+            "category": "internal",
+            "tags": [
+                "support",
+                "contacts",
+                "pii-test",
+                "redact"
+            ],
+            "content": "## Customer Contact Information\n\nThis article contains emails, phones, and IPs that should be REDACTED.\n\n### Support Team Contacts\n- **Support Lead**: support.lead@example.com, Phone: (555) 123-4567\n- **Technical Support**: tech.help@company.org, Phone: 555-987-6543\n- **Sales Team**: sales@example.com, Phone: (800) 555-0199\n\n### Customer Service Locations\n- US Office: us.support@example.com, Phone: 1-800-123-4567\n- EU Office: eu.support@example.com, Phone: +44-20-7946-0958\n\n### Server Information\n- Primary Server IP: 192.168.1.100\n- Backup Server IP: 10.0.0.50\n- Public Gateway: 203.0.113.42",
+            "author": "Customer Service",
+            "created_at": "2024-03-15T12:00:00Z",
+            "updated_at": "2024-03-15T12:00:00Z",
+            "views": 45
+        },
+        {
+            "id": "pii-mixed-all",
+            "title": "Complete Customer Profile (All PII Types)",
+            "slug": "complete-customer-profile",
+            "category": "internal",
+            "tags": [
+                "customer",
+                "profile",
+                "pii-test",
+                "mixed"
+            ],
+            "content": "## Full Customer Profile\n\nThis article contains ALL PII types - some should BLOCK, others should REDACT.\n\n### Customer: John Smith\n- **Email**: john.smith@example.com (should be redacted)\n- **Phone**: (555) 123-4567 (should be redacted)\n- **SSN**: 123-45-6789 (should be BLOCKED)\n- **Credit Card**: 4532015112830366 (should be BLOCKED)\n- **IP Address**: 192.168.1.100 (should be redacted)\n\n### Notes\nThis record is used to test that blocking takes precedence over redaction.",
+            "author": "System Admin",
+            "created_at": "2024-03-15T13:00:00Z",
+            "updated_at": "2024-03-15T13:00:00Z",
+            "views": 10
+        },
+        {
+            "id": "content-test-1",
+            "title": "Security Incident Report Template",
+            "slug": "security-incident-template",
+            "category": "security",
+            "tags": [
+                "security",
+                "incident",
+                "content-test"
+            ],
+            "content": "## Security Incident Report\n\nThis document is for testing content filtering policies.\n\n### Incident Types to Monitor\n- Malware detection\n- Exploit attempts\n- Unauthorized access\n\n### Sample Alert Keywords\nThe following terms may trigger content filters:\n- password leak detected\n- SQL injection attempt: SELECT * FROM users WHERE 1=1\n- Suspicious pattern: eval(base64_decode())\n\n### Response Procedures\n1. Isolate affected systems\n2. Collect forensic evidence\n3. Report to security team",
+            "author": "Security Team",
+            "created_at": "2024-03-16T14:00:00Z",
+            "updated_at": "2024-03-16T14:00:00Z",
+            "views": 25
+        },
+        {
+            "id": "restricted-1",
+            "title": "Administrative Configuration Guide",
+            "slug": "admin-config-guide",
+            "category": "admin",
+            "tags": [
+                "admin",
+                "configuration",
+                "restricted",
+                "rbac-test"
+            ],
+            "content": "## Admin-Only Configuration\n\nThis content is restricted and should only be accessible to admin roles.\n\n### System Configuration\n- Database credentials location: /etc/app/db.conf\n- API keys stored in: /var/secrets/api-keys\n\n### Access Control Settings\n- Admin panel: https://admin.internal/settings\n- User management: https://admin.internal/users\n\n### Dangerous Operations\n- System reset: POST /api/admin/reset\n- Data purge: DELETE /api/admin/purge-all",
+            "author": "System Administrator",
+            "created_at": "2024-03-17T09:00:00Z",
+            "updated_at": "2024-03-17T09:00:00Z",
+            "views": 10
+        },
+        {
+            "id": "rate-test-1",
+            "title": "API Rate Limiting Best Practices",
+            "slug": "rate-limiting-guide",
+            "category": "security",
+            "tags": [
+                "api",
+                "rate-limiting",
+                "performance"
+            ],
+            "content": "## Understanding Rate Limits\n\nRate limiting protects your API from abuse and ensures fair usage.\n\n### Common Strategies\n\n1. **Fixed Window**: Count requests per time window\n2. **Sliding Window**: Rolling window for smoother limits\n3. **Token Bucket**: Allow bursts within limits\n\n### Implementation\n\n```python\nfrom fastapi import Request, HTTPException\nfrom collections import defaultdict\nimport time\n\nrequest_counts = defaultdict(list)\n\nasync def rate_limit(request: Request):\n    client_ip = request.client.host\n    now = time.time()\n    \n    # Clean old requests\n    request_counts[client_ip] = [\n        t for t in request_counts[client_ip]\n        if now - t < 60\n    ]\n    \n    if len(request_counts[client_ip]) >= 100:\n        raise HTTPException(429, 'Rate limit exceeded')\n    \n    request_counts[client_ip].append(now)\n```\n\n### Testing Rate Limits\nUse this article to test rate limiting by making repeated requests.",
+            "author": "DevOps Team",
+            "created_at": "2024-03-18T11:00:00Z",
+            "updated_at": "2024-03-18T11:00:00Z",
+            "views": 150
+        }
+    ],
+    "categories": [
+        {
+            "id": "python",
+            "name": "Python",
+            "description": "Python programming tutorials"
+        },
+        {
+            "id": "ai",
+            "name": "AI & ML",
+            "description": "Artificial intelligence and machine learning"
+        },
+        {
+            "id": "database",
+            "name": "Database",
+            "description": "Database design and management"
+        },
+        {
+            "id": "security",
+            "name": "Security",
+            "description": "Security best practices"
+        },
+        {
+            "id": "internal",
+            "name": "Internal",
+            "description": "Internal documentation with sensitive data (for testing)"
+        },
+        {
+            "id": "admin",
+            "name": "Admin",
+            "description": "Administrative guides (restricted access)"
+        }
+    ]
+}

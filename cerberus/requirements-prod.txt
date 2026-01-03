@@ -1,0 +1,32 @@
+# Production dependencies only (no dev/test tools)
+
+# Core Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+pydantic==2.5.3
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.25
+asyncpg==0.29.0
+alembic==1.13.1
+
+# Redis
+redis==5.0.1
+
+# Authentication & Security
+python-jose[cryptography]==3.3.0
+bcrypt==4.2.0
+python-multipart==0.0.6
+
+# HTTP Client
+httpx==0.26.0
+
+# Validation & Utilities
+email-validator==2.1.0
+python-dateutil==2.8.2
+python-slugify==8.0.4
+
+# Logging & Monitoring
+structlog==24.1.0
+python-json-logger==2.0.7
